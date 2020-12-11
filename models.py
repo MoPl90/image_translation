@@ -5,8 +5,9 @@ from tensorflow.keras.layers import Input
 from tensorflow.keras.layers import Activation
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.layers import Reshape, Flatten
-from tensorflow.keras.layers import Conv2D, Conv3D,Conv2DTranspose
+from tensorflow.keras.layers import Conv2D, Conv3D, Conv2DTranspose, Conv3DTranspose
 from tensorflow.keras.layers import UpSampling2D, UpSampling3D
+from tensorflow.keras.layers import MaxPooling2D, MaxPooling3D
 from tensorflow.keras.layers import Cropping2D, Cropping3D
 from tensorflow.keras.layers import LeakyReLU
 from tensorflow.keras.layers import BatchNormalization
@@ -16,6 +17,7 @@ from functools import partial
 import matplotlib.pylab as plt
 import numpy as np
 from tensorflow.keras.utils import plot_model
+import seaborn as sns
 from layers import *
 from utils import *
 from data_generator import *
@@ -28,7 +30,7 @@ class PIX2PIX():
 	def __init__(self,
 				 image_shape=(128, 128, 128, 3),
 				 n_classes = 1,
-				 batch_size = 1,
+				 batchsize = 1,
 				 batchsize_eval =5,
 				 lr = 0.0002,
 				 gf = 64,
@@ -215,7 +217,7 @@ class PIX2PIX():
 			g = self.norm_layer()(g)
 			out_img = Activation('tanh')(g)
 
-		model = Model(in_image, out_img, name="generator")
+		model = Model(in_image, out_img, name="PIX2PIX_generator")
 
 		plot_model(model, to_file=self. out_dir + "/generator.png", show_shapes=True, show_layer_names=True)
 		# model.summary()
@@ -477,6 +479,11 @@ class PIX2PIX():
 
 			ax_arr = ax_arr.reshape((num_ims, 3))
 
+
+			image_A = np.transpose(image_A, (2,1,0,3))
+			image_B = np.transpose(image_B, (2,1,0,3))
+			fake_B = np.transpose(fake_B, (2,1,0,3))
+
 			for i in range(0,num_ims):
 				(ax1, ax2, ax3) = ax_arr[i]
 
@@ -710,7 +717,7 @@ class SPADE():
 
 		out_img = Activation('tanh')(g)
 
-		model = Model([latent_in, mask_in], out_img, name="generator")
+		model = Model([latent_in, mask_in], out_img, name="SPADE_generator")
 
 		# plot_model(model, to_file=self. out_dir + "/generator.png", show_shapes=True, show_layer_names=True)
 		model.summary()
@@ -971,6 +978,11 @@ class SPADE():
 
 		num_ims = min(10, len(non_zero_slices))
 
+
+		image_A = np.transpose(image_A, (2,1,0,3))
+		image_B = np.transpose(image_B, (2,1,0,3))
+		fake_B = np.transpose(fake_B, (2,1,0,3))
+
 		fig, ax_arr = plt.subplots(num_ims, 3, figsize=(9, 3*num_ims))
 
 		ax_arr = ax_arr.reshape((num_ims, 3))
@@ -1206,7 +1218,7 @@ class GAN():
 				out_image = Cropping2D(crop)(out_image)
 
 		# define model
-		model = Model(inp, out_image)
+		model = Model(inp, out_image, name="GAN_generator")
 
 		plot_model(model, to_file=self.out_dir + "/generator.png", show_shapes=True, show_layer_names=True)
 		return model
@@ -1214,7 +1226,7 @@ class GAN():
 
 	# define the discriminator model
 	def define_discriminator(self):
-
+		
 		if len(self.image_shape[:-1]) == 3:
 			conv_layer = Conv3D
 		elif len(self.image_shape[:-1]) == 2:
@@ -1303,26 +1315,23 @@ class GAN():
 
 		#Training mode: 0 = segmentations, 1 = images, 2 = differences
 		if self.mode > 1:
-			train = train[1]
+			mask, ims = train
+			ims[mask[..., -1] < 1.] = 0.
 		else:
-			train = train[self.mode]
+			ims = train[self.mode]
 
 		# use only desired channels
-		if train.shape[-1] > self.image_shape[-1]:
-			train = train[..., :self.image_shape[-1]]
+		if ims.shape[-1] > self.image_shape[-1]:
+			ims = ims[..., :self.image_shape[-1]]
 
 		# prepare image pool for fakes
 		pool = list()
 
 		# select a batch of real samples
-		X_real, y_real = generate_real_samples(train, self.BATCH_SIZE, patch_shape)
+		X_real, y_real = generate_real_samples(ims, self.BATCH_SIZE, patch_shape)
 		# generate a batch of fake samples
-		X_fake, y_fake = generate_fake_samples(self.g_model, self.BATCH_SIZE, patch_shape)
-
-		#For training mode 2, use differences
-		if self.mode ==2:
-			X_fake = X_fake + generate_real_samples(train, self.BATCH_SIZE, patch_shape)[0]
-
+		X_fake, y_fake = generate_fake_samples(self.g_model, ims, patch_shape)
+			
 		# update fakes from pool
 		X_fake = update_image_pool(pool, X_fake, self.pool_size)
 
@@ -1432,23 +1441,22 @@ class GAN():
 			if isinstance(testGenerator, (DataGenerator)):
 				eval = next(testGenerator)
 
+			#Training mode: 0 = segmentations, 1 = images, 2 = differences
 			if self.mode > 1:
-				eval = eval[1]
+				mask, ims = eval
+				ims[mask[..., -1] < 1.] = 0.
 			else:
-				eval = eval[self.mode]
+				ims = eval[self.mode]
+
 
 			# use only desired channels
-			if eval.shape[-1] > self.image_shape[-1]:
-				eval = eval[..., :self.image_shape[-1]]
+			if ims.shape[-1] > self.image_shape[-1]:
+				ims = ims[..., :self.image_shape[-1]]
 
 			# select a batch of real samples
-			X_real, y_real = generate_real_samples(eval, self.BATCH_SIZE_EVAL, patch_shape)
+			X_real, y_real = generate_real_samples(ims, self.BATCH_SIZE_EVAL, patch_shape)
 			# generate a batch of fake samples
 			X_fake, y_fake = generate_fake_samples(self.g_model, self.BATCH_SIZE_EVAL, patch_shape)
-
-			#For training mode 2, use differences
-			if self.mode ==2:
-				X_fake = X_fake + generate_real_samples(eval, self.BATCH_SIZE_EVAL, patch_shape)[0]
 
 			# evaluate generator
 			g_loss += self.adversarial_model.evaluate(np.random.normal(0, 1, (self.BATCH_SIZE_EVAL, self.latent_size)), self.loss_weights[-1]*y_real, verbose=0)
@@ -1493,6 +1501,9 @@ class GAN():
 		fig, ax_arr = plt.subplots(num_ims, 2, figsize=(6, 3*num_ims))
 
 		ax_arr = ax_arr.reshape((num_ims, 2))
+
+		real_im = np.transpose(real_im, (2,1,0,3))
+		fake_im = np.transpose(fake_im, (2,1,0,3))
 
 		i = 0
 		for i in range(num_ims):

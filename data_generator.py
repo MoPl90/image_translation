@@ -63,8 +63,8 @@ class DataGenerator(Sequence):
         #preload data into RAM if stated
         self.preload = preload_data
         if self.preload:
-            self.dataX = self._preloadData(list_IDs, self.labelPath, self.labelType)
-            self.dataY = self._preloadData(list_IDs, self.imagePath, self.imageType)
+            self.dataX = self.loadData(list_IDs, self.labelPath, self.labelType)
+            self.dataY = self.loadData(list_IDs, self.imagePath, self.imageType)
 
         #create augmentor
         augmentation_parameters = {
@@ -90,15 +90,22 @@ class DataGenerator(Sequence):
         self.on_epoch_end()
 
 
-    def _preloadData(self, IDs, folderPath, imgType):
+    def loadData(self, IDs, folderPath, imgType):
         # X: we need to add a new axis for the channel dimension
         # Y: we need to transform to categorical
         #generate dict with sample-ID as key and dataobj as value
         dataDict = {}
         for i, ID in enumerate(IDs):
-            #load data
-            dataObj = self.load3DImagesNii(folderPath, ID, imgType, self.crop_parameters, self.resize_parameters)[..., np.newaxis]
-
+            if imgType in ['.nii.gz', '.nii']:
+                dataObj = self.load3DImagesNii(folderPath, ID, imgType, self.crop_parameters)[..., np.newaxis]
+            elif imgType == '.dcm':
+                dataObj = self.load3DImagesDcm(folderPath, ID, imgType)[..., np.newaxis]
+            elif imgType == '.npy':
+                pathToNpy = folderPath + '/' + ID + '.npy'
+                dataObj = np.load(pathToNpy)[..., np.newaxis]
+            else:
+                raise Exception("Unknown image type")
+        
             #add new key-value pair
             dataDict[ID] = dataObj
 
@@ -123,8 +130,8 @@ class DataGenerator(Sequence):
 
         #Load data at this point if not preloaded already
         if not self.preload:
-            self.dataX = self._preloadData(list_IDs_temp, self.labelPath, self.labelType)
-            self.dataY = self._preloadData(list_IDs_temp, self.imagePath, self.imageType)
+            self.dataX = self.loadData(list_IDs_temp, self.labelPath, self.labelType)
+            self.dataY = self.loadData(list_IDs_temp, self.imagePath, self.imageType)
 
         #Generate data
         X = np.empty((self.batch_size, *self.dim, self.n_classes))
@@ -204,11 +211,75 @@ class DataGenerator(Sequence):
         pathToNiiGz = pathToNiiFolder + '/' + caseNumber + imageType
         image_array = np.asanyarray(nib.load(pathToNiiGz).dataobj)
 
-        if resize_parameters is not None:
-            image_array = resize(image_array, resize_parameters)
-
         return image_array[crop_parameters[0]: crop_parameters[1], crop_parameters[2]: crop_parameters[3], crop_parameters[4]: crop_parameters[5]]
 
+
+    # load the DICOM files from a Folder, and return a 3 dim numpy array in LPS orientation
+    def load3DImageDCM_LPS(self, pathToLoadDicomFolder, orientation):
+    
+        fileTuples = []
+
+        for fname in glob.glob(pathToLoadDicomFolder, recursive=False):
+            fileTuples.append((fname,pydicom.dcmread(fname)))
+
+        # sort the tuple (filename, dicom image) by image position
+            fileTuples = sorted(fileTuples, key=lambda s: s[1].ImagePositionPatient[orientation])
+
+        files = [x[1] for x in fileTuples]
+        fileNames = [x[0] for x in fileTuples]
+
+        # print("PATH TO LOAD DICOM FOLDER: {}".format(pathToLoadDicomFolder))
+        # print(fileNames)
+
+        img2d_shape = list(files[0].pixel_array.shape)
+
+        if orientation == 1:
+            L = img2d_shape[1]
+            P = img2d_shape[0]
+            S = len(files)
+        
+        if orientation == 2:
+            L = len(files)
+            P = img2d_shape[1] 
+            S = img2d_shape[0] #in fact -
+            
+        if orientation == 3:
+            L = img2d_shape[1]
+            P = len(files)
+            S = img2d_shape[0] #in fact -
+
+        img_shape = [L,P,S]
+        # print("image shape in LPS: {}".format(img_shape))
+
+        img3d = np.zeros(img_shape)
+
+        # fill 3D array with the images from the files
+        for i, s in enumerate(files):
+            img2d = s.pixel_array
+
+            img_shape = [L,P,S]
+            
+            if orientation == 0:
+                img3d[i, :, :] = img2d.T
+            
+            if orientation == 1:
+                img2d = np.flip(img2d,axis=0)
+                img3d[:, i, :] = img2d.T
+        
+            if orientation == 2:
+                img2d = np.flip(img2d,axis=0)
+                img3d[:, :, i] = img2d.T
+                            
+        return img3d
+
+
+
+    def load3DImagesDcm(self, pathToDcmFolder, ID, crop_params):
+        pathToDicomFolder = pathToDcmFolder + '/' + ID
+        orientation = get_Orientation(pathToDicomFolder)
+        image_array = self.load3DImageDCM_LPS(pathToDicomFolder+'/*', orientation)
+        return image_array[crop_params[0]: crop_params[1], crop_params[2]: crop_params[3], crop_params[4]: crop_params[5]]
+    
 
 
 #####################################
@@ -294,6 +365,33 @@ def ctNormalization(array):
     vol = -1 + 2 * (vol - np.min(vol)) / (np.max(vol) - np.min(vol))
 
     return vol
+
+
+def get_orientation(dcm_path):
+    """
+    Function which returns the (encoded) orientation of a dicom volume.
+
+    Input: Path to dicom volume
+
+    Returns:  0 (if the images are sagittal slices), 1 (if the images are coronal slices), 2 (if the images are axial slices).
+    """
+
+    orientations = []
+
+    for file in os.listdir(dcm_path):
+        
+        slc = dcm_path + '/' + file
+        slc = pydicom.dcmread(slc)
+
+        dicom_orientation = np.asarray(slc.ImageOrientationPatient).reshape((2,3))
+        dicom_orientation_argmax = sorted(np.argmax(np.abs(dicom_orientation), axis=1))
+
+        orientations.append(np.delete([0,1,2], sorted(dicom_orientation_argmax)))
+
+    assert len(np.unique(orientations)) == 1, "ERROR: Not all slices have same orientation!"
+
+    return np.unique(orientations)[0], np.asarray([np.sign(dicom_orientation[i][dicom_orientation_argmax[i]]) for i in range(2)], dtype=int)
+
 
 #####################################
 # Testing routine

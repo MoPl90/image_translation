@@ -18,9 +18,16 @@ def generate_real_samples(dataset, n_samples, patch_shape):
 	return X, y
 	
 # generate a batch of images, returns images and targets
-def generate_fake_samples(g_model, BATCH_SIZE, patch_shape):
+def generate_fake_samples(g_model, dataset, patch_shape):
 	# generate fake instance
-	X = g_model.predict(np.random.normal(0,1, (BATCH_SIZE, *g_model.inputs[0].shape[1:])))
+	if g_model.name == 'GAN_generator':
+		X = g_model.predict(np.random.normal(0,1, (len(dataset), *g_model.inputs[0].shape[1:])))
+	elif g_model.name == 'PIX2PIX_generator':
+		X = g_model.predict(dataset)
+	elif g_model.name == 'SPADE_generator':
+		latent = np.random.normal(0, 1, (len(dataset), *g_model.inputs[0].shape[1:]))
+		X = g_model.predict([latent, dataset])		
+	
 	# create 'fake' class labels (0)
 	y = np.ones((len(X), *patch_shape))
 	return X, y

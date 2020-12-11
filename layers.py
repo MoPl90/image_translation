@@ -1,7 +1,9 @@
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.layers import Flatten, Reshape
 from tensorflow.keras.layers import Conv2D, Conv3D
+from tensorflow.keras.layers import UpSampling2D, UpSampling3D
 from tensorflow.keras.layers import BatchNormalization
+from tensorflow.keras.layers import Dropout
 from tensorflow.keras.layers import Layer
 from tensorflow.keras.layers import LeakyReLU
 from tensorflow.keras.layers import Concatenate
