@@ -4,6 +4,9 @@ from tensorflow.keras.layers import Conv2D, Conv3D
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.layers import Layer
 from tensorflow.keras.layers import LeakyReLU
+from tensorflow.keras.layers import Concatenate
+from tensorflow.keras.layers import GaussianNoise
+from tensorflow.keras.layers import Add
 import tensorflow.keras.backend as K
 from tensorflow.python.ops import array_ops
 import numpy as np

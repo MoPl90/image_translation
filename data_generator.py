@@ -18,15 +18,15 @@ class DataGenerator(Sequence):
 
     def __init__(self, 
                 list_IDs, 
-                imagePathFolder, 
-                labelPathFolder, 
+                imagePath, 
+                labelPath, 
                 normalization_args, 
-                augment, 
-                augmentation_args, 
+                augment = 0, 
+                augmentation_args = {}, 
                 preload_data = False, 
                 imageType = '.dcm', 
                 labelType = '.dcm', 
-                batch_size=32, 
+                batchsize=32, 
                 dim=(32, 32, 32), 
                 crop_parameters=[0,10,0,10,0,10], 
                 resize_parameters=None,
@@ -39,14 +39,14 @@ class DataGenerator(Sequence):
                 preload=False):
 
         self.dim = dim
-        self.batch_size = batch_size
+        self.batch_size = batchsize
         # self.labels = labels
         self.list_IDs = list_IDs
         self.n_channels = n_channels
         self.n_classes = n_classes
         self.shuffle = shuffle
-        self.imagePathFolder = imagePathFolder
-        self.labelPathFolder = labelPathFolder
+        self.imagePath = imagePath
+        self.labelPath = labelPath
         self.imageType = imageType
         self.labelType = labelType
         self.variableTypeX = variableTypeX
@@ -63,8 +63,8 @@ class DataGenerator(Sequence):
         #preload data into RAM if stated
         self.preload = preload_data
         if self.preload:
-            self.dataX = self._preloadData(list_IDs, self.labelPathFolder, self.labelType)
-            self.dataY = self._preloadData(list_IDs, self.imagePathFolder, self.imageType)
+            self.dataX = self._preloadData(list_IDs, self.labelPath, self.labelType)
+            self.dataY = self._preloadData(list_IDs, self.imagePath, self.imageType)
 
         #create augmentor
         augmentation_parameters = {
@@ -123,8 +123,8 @@ class DataGenerator(Sequence):
 
         #Load data at this point if not preloaded already
         if not self.preload:
-            self.dataX = self._preloadData(list_IDs_temp, self.labelPathFolder, self.labelType)
-            self.dataY = self._preloadData(list_IDs_temp, self.imagePathFolder, self.imageType)
+            self.dataX = self._preloadData(list_IDs_temp, self.labelPath, self.labelType)
+            self.dataY = self._preloadData(list_IDs_temp, self.imagePath, self.imageType)
 
         #Generate data
         X = np.empty((self.batch_size, *self.dim, self.n_classes))
@@ -156,10 +156,6 @@ class DataGenerator(Sequence):
             # CTNormalization
             if (self.normalization_args['ctNormalize'] == 1):
                 Y_temp = ctNormalization(Y_temp)
-
-            # gaussian filter
-            if (self.normalization_args['gaussian_filter'] == 1):
-                Y_temp = gaussian_smoothing(Y_temp, self.normalization_args['gaussian_filter_hsize'], self.normalization_args['gaussian_filter_sigma'])
 
             # #Rearrage arrays in dicom ordering, with slice dim first
             # X_temp = np.transpose(X_temp,(2,1,0,3))[:, ::-1,...]

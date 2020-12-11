@@ -28,8 +28,8 @@ class PIX2PIX():
 	def __init__(self,
 				 image_shape=(128, 128, 128, 3),
 				 n_classes = 1,
-				 BATCH_SIZE = 1,
-				 BATCH_SIZE_EVAL=5,
+				 batch_size = 1,
+				 batchsize_eval =5,
 				 lr = 0.0002,
 				 gf = 64,
 				 n_res = -1,
@@ -52,8 +52,8 @@ class PIX2PIX():
 		self.input_shape = np.array(image_shape)
 		self.input_shape[-1] = n_classes
 
-		self.BATCH_SIZE = BATCH_SIZE
-		self.BATCH_SIZE_EVAL = BATCH_SIZE_EVAL
+		self.BATCH_SIZE = batchsize
+		self.BATCH_SIZE_EVAL = batchsize_eval
 		self.lr = lr
 		self.dropout = dropoutrate
 		self.steps = 0
@@ -583,8 +583,8 @@ class SPADE():
 	def __init__(self,
 				 image_shape=(128, 128, 128, 3),
 				 n_classes=1,
-				 BATCH_SIZE=1,
-				 BATCH_SIZE_EVAL=5,
+				 batchsize=1,
+				 batchsize_eval=5,
 				 lr=0.0002,
 				 gf=64,
 				 latent_dim=100,
@@ -607,8 +607,8 @@ class SPADE():
 		self.input_shape = np.array(image_shape)
 		self.input_shape[-1] = n_classes
 
-		self.BATCH_SIZE = BATCH_SIZE
-		self.BATCH_SIZE_EVAL = BATCH_SIZE_EVAL
+		self.BATCH_SIZE = batchsize
+		self.BATCH_SIZE_EVAL = batchsize_eval
 		self.lr = lr
 		self.dropout = dropoutrate
 		self.steps = 0
@@ -1082,26 +1082,27 @@ class GAN():
 	def __init__(self,
 				 image_shape=[32, 32, 32, 1],
 				 n_classes=1,
-				 BATCH_SIZE=1,
-				 BATCH_SIZE_EVAL=5,
+				 batchsize=1,
+				 batchsize_eval=5,
 				 lr=0.0002,
 				 filter_d=8,
 				 latent_size=100,
 				 init_weights=0.02,
-				 use_instance_norm=False,
+				 norm = 'instance',
 				 dropoutrate=0.3,
 				 out_activation="tanh",
 				 leakiness=0.02,
-				 loss_fn='mse',
+				 loss='mse',
 				 loss_weights=[1,0,1],
 				 mode=0,
+				 pool_size = 50,
 				 out_dir="."
 				 ):
 
 		self.image_shape = np.array(image_shape)
 		self.n_classes = n_classes
-		self.BATCH_SIZE = BATCH_SIZE
-		self.BATCH_SIZE_EVAL = BATCH_SIZE_EVAL
+		self.BATCH_SIZE = batchsize
+		self.BATCH_SIZE_EVAL = batchsize_eval
 		self.lr = lr
 		self.dropout = dropoutrate
 		self.leakiness = leakiness
@@ -1117,8 +1118,8 @@ class GAN():
 		#output layer activation
 		self.out_activation = out_activation
 
-		#Which normalization to use
-		if use_instance_norm:
+		#Normalization Layer
+		if 'instance' in norm.lower():
 			self.norm_layer = InstanceNormalization
 		else:
 			self.norm_layer = BatchNormalization
@@ -1135,12 +1136,15 @@ class GAN():
 		self.epochs = [0]
 
 		#set up loss function
-		self.loss = loss_fn
+		self.loss = loss.lower()
 		if 'wasserstein' in self.loss:
 			self.loss = wasserstein_loss
 			self.d_loss_eval = [[1,1,1]]
 		elif 'jens' in self.loss:
 			self.loss = jens_loss
+
+		#discriminator fake pool size
+		self.pool_size = pool_size
 
 		#Set up the models
 		self.g_model = self.define_generator()
@@ -1320,7 +1324,7 @@ class GAN():
 			X_fake = X_fake + generate_real_samples(train, self.BATCH_SIZE, patch_shape)[0]
 
 		# update fakes from pool
-		X_fake = update_image_pool(pool, X_fake)
+		X_fake = update_image_pool(pool, X_fake, self.pool_size)
 
 		# update generator
 		g_loss = self.adversarial_model.train_on_batch(np.random.normal(0,1,(self.BATCH_SIZE, self.latent_size)), self.loss_weights[-1]*y_real)
@@ -1564,7 +1568,7 @@ class GAN():
 
 if __name__ == "__main__":
 
-	test = trainableModel(image_shape=(32,32,1), loss_fn='wasserstein')
+	test = trainableModel(image_shape=(32,32,1), loss='wasserstein')
 
 	test.g_model.summary()
 	test.d_model.summary()

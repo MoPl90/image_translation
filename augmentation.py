@@ -38,7 +38,8 @@ class augmentor():
         #additional settings for scipy.ndimage.interpolation.affine_transform
         self.fillMode = 'constant'
         self.cValue = 0.0
-        self.interpolationOrder = 0  #only used for input X, 0 used for Y
+        self.interpolationOrderX = 0  
+        self.interpolationOrderY = 3  
 
         #stores number of transformations per step
         self.numbTransforms = []
@@ -56,7 +57,7 @@ class augmentor():
     def augmentXY(self, X, Y, maxTransforms=2):
 
         # Define how many transforms
-#        numTransforms = random.randint(0, maxTransforms)
+        # numTransforms = random.randint(0, maxTransforms)
         numTransforms = maxTransforms
 
         seeds = []
@@ -74,31 +75,29 @@ class augmentor():
         self.numbTransforms.append(sum(seeds != 0.0))
 
         # Augment the input matrix X (label map)
-        self.interpolationOrder = 0
-        X = self.augment(X, seeds)
+        X = self.augment(X, seeds, self.interpolationOrderX)
 
         # Augment the output matrix Y 
-        self.interpolationOrder = 3
-        Y = self.augment(Y, seeds)
+        Y = self.augment(Y, seeds, self.interpolationOrderY)
 
         return X, Y
 
 
-    def augment(self, matrix, seeds):
+    def augment(self, matrix, seeds, order):
 
         # Rotation
         if ((seeds[0] != 0) or (seeds[1] != 0) or (seeds[2] != 0)):
             angle_x = self.rotateAngleX * seeds[0]
             angle_y = self.rotateAngleY * seeds[1]
             angle_z = self.rotateAngleZ * seeds[2]
-            matrix = self.rotation_3D(matrix, angle_x, angle_y, angle_z)
+            matrix = self.rotation_3D(matrix, angle_x, angle_y, angle_z, order=order)
 
         # Stretch
         if ((seeds[3] != 0) or (seeds[4] != 0) or (seeds[5] != 0)):
             stretch_x = 1 + self.stretchValueX * seeds[3]
             stretch_y = 1 + self.stretchValueY * seeds[4]
             stretch_z = 1 + self.stretchValueZ * seeds[5]
-            matrix = self.stretch_3D(matrix, stretch_x, stretch_y, stretch_z)
+            matrix = self.stretch_3D(matrix, stretch_x, stretch_y, stretch_z, order=order)
 
         # Translate
         if ((seeds[6] != 0) or (seeds[7] != 0) or (seeds[8] != 0)):
@@ -106,14 +105,14 @@ class augmentor():
             shift_Yaxis = self.shiftValueY * seeds[4]
             shift_Zaxis = self.shiftValueZ * seeds[5]
             
-            matrix = self.shift_3D(matrix, [shift_Xaxis, shift_Yaxis, shift_Zaxis], shift_axis='x')
+            matrix = self.shift_3D(matrix, [shift_Xaxis, shift_Yaxis, shift_Zaxis], shift_axis='x', order=order)
                 
         # Shear
         if ((seeds[9] != 0) or (seeds[10] != 0) or (seeds[11] != 0)):
             shear_x = self.shearValueX * seeds[9]
             shear_y = self.shearValueY * seeds[10]
             shear_z = self.shearValueZ * seeds[11]
-            matrix = self.shear_3D(matrix, [shear_x, shear_y, shear_z])
+            matrix = self.shear_3D(matrix, [shear_x, shear_y, shear_z], order=order)
 
         # Flip
         if (self.flipBool and (seeds[12] > 0.5)):
@@ -122,7 +121,7 @@ class augmentor():
         # Zoom 
         if (seeds[13] != 0):
             zoom = 1 + [-1, 1][np.random.randint(0,1)] * self.zoomValue * seeds[13]
-            matrix = self.zoom_3D(matrix, zoom)
+            matrix = self.zoom_3D(matrix, zoom, order=order)
  
         return matrix
 
@@ -139,14 +138,14 @@ class augmentor():
         return transform_matrix
 
 
-    def apply_transform_3D(self, x, transform_matrix, channel_index=0):
+    def apply_transform_3D(self, x, transform_matrix, channel_index=0, order=0):
 
         x = np.rollaxis(x, channel_index, 0)
 
         final_affine_matrix = transform_matrix[:3, :3]
         final_offset = transform_matrix[:3, 3]
 
-        channel_images = [ndi.interpolation.affine_transform(x_channel, final_affine_matrix, final_offset, order=self.interpolationOrder, mode=self.fillMode, cval=self.cValue) for x_channel in x]
+        channel_images = [ndi.interpolation.affine_transform(x_channel, final_affine_matrix, final_offset, order=order, mode=self.fillMode, cval=self.cValue) for x_channel in x]
 
         x = np.stack(channel_images, axis=0)
         x = np.rollaxis(x, 0, channel_index+1)
@@ -154,7 +153,7 @@ class augmentor():
         return x
 
 
-    def rotation_3D(self, inputMatrix, ang_x, ang_y, ang_z, row_index=0, col_index=1, depth_index=2, channel_index=3):
+    def rotation_3D(self, inputMatrix, ang_x, ang_y, ang_z, row_index=0, col_index=1, depth_index=2, channel_index=3, order=0):
 
         theta_x = np.pi / 180 * ang_x
         theta_y = np.pi / 180 * ang_y
@@ -181,12 +180,12 @@ class augmentor():
 
         h, w, d = inputMatrix.shape[row_index], inputMatrix.shape[col_index], inputMatrix.shape[depth_index]
         transform_matrix = self.transform_matrix_offset_center_3D(rotation_matrix, h, w, d)
-        rotatedMatrix = self.apply_transform_3D(inputMatrix, transform_matrix, channel_index)
+        rotatedMatrix = self.apply_transform_3D(inputMatrix, transform_matrix, channel_index, order)
 
         return rotatedMatrix
 
 
-    def stretch_3D(self, inputMatrix, stretchFactor_x, stretchFactor_y, stretchFactor_z, row_index=0, col_index=1, depth_index=2, channel_index=3):
+    def stretch_3D(self, inputMatrix, stretchFactor_x, stretchFactor_y, stretchFactor_z, row_index=0, col_index=1, depth_index=2, channel_index=3, order=0):
 
         #stretch matrix, stretch can be performed in all dimensions at once
         stretch_matrix = np.array([[stretchFactor_x, 0, 0, 0],
@@ -196,12 +195,12 @@ class augmentor():
 
         h, w, d = inputMatrix.shape[row_index], inputMatrix.shape[col_index], inputMatrix.shape[depth_index]
         transform_matrix = self.transform_matrix_offset_center_3D(stretch_matrix, h, w, d)
-        stretchedMatrix = self.apply_transform_3D(inputMatrix, transform_matrix, channel_index)
+        stretchedMatrix = self.apply_transform_3D(inputMatrix, transform_matrix, channel_index, order)
 
         return stretchedMatrix
 
     def shift_3D(self, inputMatrix, shift, row_index=0, col_index=1, depth_index=2, channel_index=3, shift_axis='z',
-        fill_mode='nearest', cval=0.):
+        fill_mode='nearest', cval=0., order=0):
 
         # shift is multiplication factor of the size of the image
         t = inputMatrix.shape[depth_index] * shift
@@ -227,11 +226,11 @@ class augmentor():
 
         # transform_matrix = translation_matrix  # no need to do offset
         # rotatedMatrix = apply_transform(inputMatrix, transform_matrix, channel_index, fill_mode, cval)
-        shiftedMatrix = self.apply_transform_3D(inputMatrix, translation_matrix, channel_index)
+        shiftedMatrix = self.apply_transform_3D(inputMatrix, translation_matrix, channel_index, order)
         return shiftedMatrix
 
     def shear_3D(self, inputMatrix, shearFactors, row_index=0, col_index=1, depth_index=2, channel_index=3,
-                 fill_mode='nearest', cval=0.):
+                 fill_mode='nearest', cval=0., order=0):
 
         shear_matrix = np.array([[1, shearFactors[0], 0, 0],
                                    [0, 1, 0, 0],
@@ -254,7 +253,7 @@ class augmentor():
 
         h, w, d = inputMatrix.shape[row_index], inputMatrix.shape[col_index], inputMatrix.shape[depth_index]
         transform_matrix = self.transform_matrix_offset_center_3D(shear_matrix, h, w, d)
-        shearedMatrix = self.apply_transform_3D(inputMatrix, transform_matrix, channel_index)
+        shearedMatrix = self.apply_transform_3D(inputMatrix, transform_matrix, channel_index, order)
 
         return shearedMatrix
 
@@ -263,7 +262,7 @@ class augmentor():
 
 
     def zoom_3D(self, inputMatrix, zoom, row_index=0, col_index=1, depth_index=2, channel_index=3,
-                fill_mode='nearest', cval=0.):
+                fill_mode='nearest', cval=0., order=0):
 
         # zoom factor will be multiplied to the current volume
 
@@ -275,6 +274,6 @@ class augmentor():
 
         h, w, d = inputMatrix.shape[row_index], inputMatrix.shape[col_index], inputMatrix.shape[depth_index]
         transform_matrix = self.transform_matrix_offset_center_3D(zoom_matrix, h, w, d)
-        zoomedMatrix = self.apply_transform_3D(inputMatrix, transform_matrix, channel_index)
+        zoomedMatrix = self.apply_transform_3D(inputMatrix, transform_matrix, channel_index, order)
 
         return zoomedMatrix
