@@ -14,7 +14,7 @@ from tensorflow.python.ops import array_ops
 import numpy as np
 
 # generator a resnet block
-def resnet_block(n_filters, input_layer, dim=3, init='he_normal', norm_layer=BatchNormalization):
+def resnet_block(n_filters, input_layer, dim=3, init='he_normal', norm_layer=BatchNormalization, leakiness=leakiness):
 
 	if dim == 3:
 		conv_layer = Conv3D
@@ -26,7 +26,7 @@ def resnet_block(n_filters, input_layer, dim=3, init='he_normal', norm_layer=Bat
 	# first layer convolutional layer
 	g = conv_layer(n_filters, kernel_size=3, padding='same', kernel_initializer=init)(input_layer)
 	g = norm_layer()(g)
-	g = LeakyReLU(0.2)(g)
+	g = LeakyReLU(leakiness)(g)
 
 	# second convolutional layer
 	g = conv_layer(n_filters, kernel_size=3, padding='same', kernel_initializer=init)(g)
@@ -34,13 +34,13 @@ def resnet_block(n_filters, input_layer, dim=3, init='he_normal', norm_layer=Bat
 	# concatenate merge channel-wise with input layer
 	g = Concatenate()([g, input_layer])
 
-	g = LeakyReLU(0.2)(g)
+	g = LeakyReLU(leakiness)(g)
 
 	return g
 
 
 
-def conv_d(layer_input, filters, kernel_size=4, norm=True, dim=3, init='he_normal', norm_layer=BatchNormalization):
+def conv_d(layer_input, filters, kernel_size=4, norm=True, dim=3, init='he_normal', norm_layer=BatchNormalization, leakiness=leakiness):
 	"""Layers used during downsampling"""
 
 	if dim == 3:
@@ -53,11 +53,11 @@ def conv_d(layer_input, filters, kernel_size=4, norm=True, dim=3, init='he_norma
 	if norm:
 		d = norm_layer()(d)
 
-		d = LeakyReLU(alpha=0.2)(d)
+		d = LeakyReLU(leakiness)(d)
 	return d
 
 
-def deconv_d(layer_input, skip_input, filters, kernel_size=4, dropout_rate=0, dim=3, init='he_normal', norm_layer=BatchNormalization):
+def deconv_d(layer_input, skip_input, filters, kernel_size=4, dropout_rate=0, dim=3, init='he_normal', norm_layer=BatchNormalization, leakiness=leakiness):
 	"""Layers used during upsampling"""
 
 	if dim == 3:
@@ -72,14 +72,14 @@ def deconv_d(layer_input, skip_input, filters, kernel_size=4, dropout_rate=0, di
 
 	u = upsampling_layer(size=2)(layer_input)
 	u = conv_layer(filters, kernel_size=kernel_size, strides=1, padding='same', kernel_initializer=init)(u)
-	u = LeakyReLU(0.2)(u)
+	u = LeakyReLU(leakiness)(u)
 
 	if dropout_rate>0:
 		u = Dropout(dropout_rate)(u)
 	u = norm_layer()(u)
 	u = Concatenate()([u, skip_input])
 
-	u = LeakyReLU(0.2)(u)
+	u = LeakyReLU(leakiness)(u)
 	return u
 
 
@@ -101,8 +101,8 @@ def spade_block(latent_in, input_mask, dim=3, init='he_normal'):
 	return out
 
 # generator a resnet block
-def spade_res_block(fil, latent_in, input_mask, dim=3, init='he_normal', rectify=False):
-	"""S{ADE residual block; two-fold application of SPADE block and a 3x3 convolution.
+def spade_res_block(fil, latent_in, input_mask, dim=3, init='he_normal', rectify=False, leakiness=leakiness):
+	"""SPADE residual block; two-fold application of SPADE block and a 3x3 convolution.
 
 	Input:
 	    fil: 		filters for convolutions
@@ -120,12 +120,12 @@ def spade_res_block(fil, latent_in, input_mask, dim=3, init='he_normal', rectify
 
 
 	out = spade_block(latent_in, input_mask, dim, init)
-	out = LeakyReLU(0.2)(out)
+	out = LeakyReLU(leakiness)(out)
 	out = conv_layer(filters=fil, kernel_size=3, padding='same', kernel_initializer=init)(out)
 
 	if not rectify:
 		out = spade_block(out, input_mask, dim, init)
-		out = LeakyReLU(0.2)(out)
+		out = LeakyReLU(leakiness)(out)
 		out = conv_layer(filters=fil, kernel_size=3, padding='same', kernel_initializer=init)(out)
 
 	return out

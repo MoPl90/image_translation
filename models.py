@@ -22,7 +22,7 @@ from layers import *
 from utils import *
 from data_generator import *
 
-plt.rc('font', **{'size':18, 'family':'serif'})
+plt.rc('font', **{'size':14, 'family':'serif'})
 
 
 class PIX2PIX():
@@ -37,6 +37,8 @@ class PIX2PIX():
 				 n_res = -1,
 				 filters_d = [32, 64, 128, 256, 256],
 				 norm = 'instance',
+				 out_activation="tanh",
+				 leakiness=0.02,
 				 loss = 'mse',
 				 dis_weight =.5,
 				 adv_weight = 1.,
@@ -61,6 +63,8 @@ class PIX2PIX():
 		self.steps = 0
 		self.gf = gf
 		self.filters_d = filters_d
+		self.out_activation="tanh",
+		self.leakiness=0.02,
 		self.out_dir = out_dir
 
 		#Normalization Layer
@@ -126,43 +130,43 @@ class PIX2PIX():
 
 			d = []
 			# Downsampling
-			d1 = conv_d(in_image, self.gf, norm=False, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer)
+			d1 = conv_d(in_image, self.gf, norm=False, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer, leakiness=self.leakiness)
 			d.append(d1)
-			d2 = conv_d(d1, self.gf * 2, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer)
+			d2 = conv_d(d1, self.gf * 2, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer, leakiness=self.leakiness)
 			d.append(d2)
-			d3 = conv_d(d2, self.gf * 4, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer)
+			d3 = conv_d(d2, self.gf * 4, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer, leakiness=self.leakiness)
 			d.append(d3)
-			d4 = conv_d(d3, self.gf * 8, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer)
+			d4 = conv_d(d3, self.gf * 8, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer, leakiness=self.leakiness)
 			d.append(d4)
 			if self.image_shape[-2] > 16:
-				d5 = conv_d(d4, self.gf * 8, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer)
+				d5 = conv_d(d4, self.gf * 8, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer, leakiness=self.leakiness)
 				d.append(d5)
 			if self.image_shape[-2] > 32:
-				d6 = conv_d(d5, self.gf * 8, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer)
+				d6 = conv_d(d5, self.gf * 8, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer, leakiness=self.leakiness)
 				d.append(d6)
 			if self.image_shape[-2] > 64:
-				d7 = conv_d(d6, self.gf * 8, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer)
+				d7 = conv_d(d6, self.gf * 8, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer, leakiness=self.leakiness)
 				d.append(d7)
 
 			# Upsampling
 			if self.image_shape[-2] > 64:
-				u = deconv_d(d[-1], d[-2], self.gf * 8, dropout_rate=self.dropout, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer)
+				u = deconv_d(d[-1], d[-2], self.gf * 8, dropout_rate=self.dropout, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer, leakiness=self.leakiness)
 			else:
 				u = d[-1]
 				d.append(u)
 			if self.image_shape[-2] > 32:
-				u = deconv_d(u, d[-3], self.gf * 8, dropout_rate=self.dropout, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer)
+				u = deconv_d(u, d[-3], self.gf * 8, dropout_rate=self.dropout, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer, leakiness=self.leakiness)
 			else:
 				u = d[-2]
 				d.append(u)
 			if self.image_shape[-2] > 16:
-				u = deconv_d(u, d[-4], self.gf * 8, dropout_rate=self.dropout, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer)
+				u = deconv_d(u, d[-4], self.gf * 8, dropout_rate=self.dropout, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer, leakiness=self.leakiness)
 			else:
 				u = d[-3]
 				d.append(u)
-			u = deconv_d(u, d3, self.gf * 4, dropout_rate=self.dropout, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer)
-			u = deconv_d(u, d2, self.gf * 2, dropout_rate=self.dropout, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer)
-			u = deconv_d(u, d1, self.gf, dropout_rate=self.dropout, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer)
+			u = deconv_d(u, d3, self.gf * 4, dropout_rate=self.dropout, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer, leakiness=self.leakiness)
+			u = deconv_d(u, d2, self.gf * 2, dropout_rate=self.dropout, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer, leakiness=self.leakiness)
+			u = deconv_d(u, d1, self.gf, dropout_rate=self.dropout, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer, leakiness=self.leakiness)
 
 			if len(self.image_shape[:-1]) == 3:
 				u = UpSampling3D(size=2)(u)
@@ -200,7 +204,7 @@ class PIX2PIX():
 			res_blocks = [g]
 			for i in range(self.n_res):
 				in_res = res_blocks[-1]
-				res_blocks.append(resnet_block(filters_g[-1], in_res, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer))
+				res_blocks.append(resnet_block(filters_g[-1], in_res, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer, leakiness=self.leakiness))
 
 			g = res_blocks[-1]
 
@@ -209,13 +213,13 @@ class PIX2PIX():
 				g = conv_layer(fil, kernel_size=3, strides=1, padding='same', kernel_initializer=init)(g)
 				g = upsampling_layer()(g)
 				g = self.norm_layer()(g)
-				g = LeakyReLU(0.2)(g)
+				g = LeakyReLU(self.leakiness)(g)
 
 			n_filters = self.image_shape[-1]
 			g = conv_layer(n_filters, kernel_size=7, padding='same', kernel_initializer=init)(g)
 			g = Dropout(self.dropout)(g)
 			g = self.norm_layer()(g)
-			out_img = Activation('tanh')(g)
+			out_img = Activation(self.out_activation)(g)
 
 		model = Model(in_image, out_img, name="PIX2PIX_generator")
 
@@ -301,7 +305,7 @@ class PIX2PIX():
 
 	def train_on_batch(self, trainGenerator, testGenerator):
 		# determine the output square shape of the discriminator
-		patch_shape = self.d_model.output_shape[1:-1]
+		patch_shape = self.d_model.output_shape[1:]
 
 		# unpack dataset
 		trainA, trainB = next(trainGenerator)
@@ -407,7 +411,7 @@ class PIX2PIX():
 		"""Plot the loss and evaluation errors."""
 
 		# determine the output square shape of the discriminator
-		patch_shape = self.d_model.output_shape[1:-1]
+		patch_shape = self.d_model.output_shape[1:]
 
 		# unpack dataset
 		i = 0
@@ -462,16 +466,25 @@ class PIX2PIX():
 			# background is transparent
 			cols.insert(0, 'none')
 			# Add stroke class
-			cols.append('r')
+			cols.append((1,0,0))
 			fake_B = self.g_model.predict(imgs_A)
 
 			if len(self.image_shape) > 3:
-				non_zero_slices = np.argwhere(np.any(image_B[..., 0] > 0, axis=(1, 2))).T[0]
 				fake_B = fake_B[idx]
+				image_A = np.transpose(image_A, (2,1,0,3))
+				image_B = np.transpose(image_B, (2,1,0,3))
+				fake_B = np.transpose(fake_B, (2,1,0,3))
+
+				non_zero_slices = np.argwhere(np.any(image_B[..., 0] > 0, axis=(1, 2))).T[0]
 			else:
-				non_zero_slices = np.argwhere(np.any(imgs_B[..., 0] > 0, axis=(1, 2))).T[0]
-				image_A = imgs_A
-				image_B = imgs_B
+				image_A = np.transpose(imgs_A, (0,2,1,3))
+				image_B = np.transpose(imgs_B, (0,2,1,3))
+				fake_B = np.transpose(fake_B, (0,2,1,3))
+				non_zero_slices = np.argwhere(np.any(image_B[...,0] > 0, axis=(1, 2))).T[0]
+
+			image_A = np.flip(image_A, axis=(1,2))
+			image_B = np.flip(image_B, axis=(1,2))
+			fake_B = np.flip(fake_B, axis=(1,2))
 
 			num_ims = min(10, len(non_zero_slices))
 
@@ -479,16 +492,11 @@ class PIX2PIX():
 
 			ax_arr = ax_arr.reshape((num_ims, 3))
 
-
-			image_A = np.transpose(image_A, (2,1,0,3))
-			image_B = np.transpose(image_B, (2,1,0,3))
-			fake_B = np.transpose(fake_B, (2,1,0,3))
-
 			for i in range(0,num_ims):
 				(ax1, ax2, ax3) = ax_arr[i]
 
 				idx = (len(non_zero_slices)) // num_ims
-				ax1.contourf(np.argmax(image_A[non_zero_slices[i*idx]][::-1],axis=-1),
+				ax1.contourf(np.argmax(image_A[non_zero_slices[i*idx],::-1,:],axis=-1),
 							levels = np.arange(n_classes + 1) - 0.5,
 							colors = cols)
 				ax1.set_xticks([], [])
@@ -597,6 +605,8 @@ class SPADE():
 				 latent_dim=100,
 				 filters_d=[32, 64, 128, 256, 256],
 				 norm = 'instance',
+				 out_activation="tanh",
+				 leakiness=0.02,
 				 loss = 'mse',
 				 dis_weight =.5,
 				 adv_weight = 1.,
@@ -623,6 +633,8 @@ class SPADE():
 		self.latent_dim = latent_dim
 		self.filters_d = filters_d
 		self.out_dir = out_dir
+		self.out_activation=out_activation
+		self.leakiness=leakiness
 
 		#Normalization Layer
 		if 'instance' in norm or 'Instance' in norm:
@@ -689,13 +701,13 @@ class SPADE():
 			upsampling_layer = UpSampling2D
 			conv_layer = Conv2D
 		elif dim == 3:
-			g = Reshape((1, 4, 4, self.gf))(g)
+			g = Reshape((4, 4, 1, self.gf))(g)
 
 			pooling_layer = MaxPooling3D
 			upsampling_layer = UpSampling3D
 			conv_layer = Conv3D
 
-		res = mask_in.shape[-2]
+		res = mask_in.shape[1]
 		masks = {str(res):mask_in}
 		while res > 4:
 			key = str(res // 2)
@@ -703,19 +715,20 @@ class SPADE():
 			res = res // 2
 
 		fil = self.gf
-		while g.shape[-2] < self.image_shape[-2]:
+		while g.shape[1] < self.image_shape[1]:
+
 			if fil == g.shape[-1]:
-				g = Add()([g, spade_res_block(fil, g, masks[str(g.shape[-2])], dim=dim, init=init)])
+				g = Add()([g, spade_res_block(fil, g, masks[str(g.shape[1])], dim=dim, init=init, leakiness=self.leakiness)])
 			else:
-				g = Add()([spade_res_block(fil, g, masks[str(g.shape[-2])], dim=dim, init=init, rectify=True),
-						   spade_res_block(fil, g, masks[str(g.shape[-2])], dim=dim, init=init)])
+				g = Add()([spade_res_block(fil, g, masks[str(g.shape[1])], dim=dim, init=init, rectify=True, leakiness=self.leakiness),
+						   spade_res_block(fil, g, masks[str(g.shape[1])], dim=dim, init=init, leakiness=self.leakiness)])
 
 			g = upsampling_layer()(g)
 			fil = fil // 2
 
 		g = conv_layer(1, kernel_size=7, strides=1, padding='same', kernel_initializer=init)(g)
 
-		out_img = Activation('tanh')(g)
+		out_img = Activation(self.out_activation)(g)
 
 		model = Model([latent_in, mask_in], out_img, name="SPADE_generator")
 
@@ -802,7 +815,7 @@ class SPADE():
 
 	def train_on_batch(self, trainGenerator, testGenerator):
 		# determine the output square shape of the discriminator
-		patch_shape = self.d_model.output_shape[1:-1]
+		patch_shape = self.d_model.output_shape[1:]
 
 		# unpack dataset
 		trainA, trainB = next(trainGenerator)
@@ -908,7 +921,7 @@ class SPADE():
 		"""Plot the loss and evaluation errors."""
 
 		# determine the output square shape of the discriminator
-		patch_shape = self.d_model.output_shape[1:-1]
+		patch_shape = self.d_model.output_shape[1:]
 
 		# unpack dataset
 		i = 0
@@ -968,20 +981,26 @@ class SPADE():
 		latent = np.random.normal(0, 1, (self.BATCH_SIZE_EVAL, self.latent_dim))
 		fake_B = self.g_model.predict([latent, imgs_A])
 
+
 		if len(self.image_shape) > 3:
-			non_zero_slices = np.argwhere(np.any(image_B[..., 0] > 0, axis=(1, 2))).T[0]
 			fake_B = fake_B[idx]
+			image_A = np.transpose(image_A, (2,1,0,3))
+			image_B = np.transpose(image_B, (2,1,0,3))
+			fake_B = np.transpose(fake_B, (2,1,0,3))
+
+			non_zero_slices = np.argwhere(np.any(image_B[..., 0] > 0, axis=(1, 2))).T[0]
 		else:
-			non_zero_slices = np.argwhere(np.any(imgs_B[..., 0] > 0, axis=(1, 2))).T[0]
-			image_A = imgs_A
-			image_B = imgs_B
+			image_A = np.transpose(imgs_A, (0,2,1,3))
+			image_B = np.transpose(imgs_B, (0,2,1,3))
+			fake_B = np.transpose(fake_B, (0,2,1,3))
+			non_zero_slices = np.argwhere(np.any(image_B[...,0] > 0, axis=(1, 2))).T[0]
+
+		image_A = np.flip(image_A, axis=(1,2))
+		image_B = np.flip(image_B, axis=(1,2))
+		fake_B = np.flip(fake_B, axis=(1,2))
 
 		num_ims = min(10, len(non_zero_slices))
 
-
-		image_A = np.transpose(image_A, (2,1,0,3))
-		image_B = np.transpose(image_B, (2,1,0,3))
-		fake_B = np.transpose(fake_B, (2,1,0,3))
 
 		fig, ax_arr = plt.subplots(num_ims, 3, figsize=(9, 3*num_ims))
 
@@ -1373,9 +1392,10 @@ class GAN():
 																					   g_loss))
 
 		#evaluate and validate the performance after each epoch, then save
-		if self.steps % num_batches == 0:
+		if self.steps % len(trainGenerator) == 0:
 			self.save_loss()
 			self.epochs.append(self.steps)
+			self.visualize(X_real, X_fake)
 			self.evaluate(testGenerator)
 			self.save(len(self.epochs))
 			np.save(self.out_dir + '/res/epochs.npy', self.epochs)
@@ -1456,17 +1476,13 @@ class GAN():
 			# select a batch of real samples
 			X_real, y_real = generate_real_samples(ims, self.BATCH_SIZE_EVAL, patch_shape)
 			# generate a batch of fake samples
-			X_fake, y_fake = generate_fake_samples(self.g_model, self.BATCH_SIZE_EVAL, patch_shape)
+			X_fake, y_fake = generate_fake_samples(self.g_model, ims, patch_shape)
 
 			# evaluate generator
 			g_loss += self.adversarial_model.evaluate(np.random.normal(0, 1, (self.BATCH_SIZE_EVAL, self.latent_size)), self.loss_weights[-1]*y_real, verbose=0)
 
 			# evaluate discriminator
 			if self.loss is wasserstein_loss:
-				# _, d_loss1temp, d_loss2temp, d_loss3temp = self.average_model.evaluate([X_real, X_fake], [y_real, y_fake, np.zeros_like(y_real)], verbose=0)
-				# d_loss1 += d_loss1temp
-				# d_loss2 += d_loss2temp
-				# d_loss3 += d_loss3temp
 				d_loss1 = self.d_model.evaluate(X_real, self.loss_weights[0]*y_real, verbose=0)
 				d_loss2 = self.d_model.evaluate(X_fake, self.loss_weights[1]*y_fake, verbose=0)
 				d_loss3 = self.average_model.evaluate([X_real, X_fake], [np.zeros_like(y_real)], verbose=0)
@@ -1483,8 +1499,6 @@ class GAN():
 
 		np.save(self.out_dir + '/res/d_loss_eval.npy', self.d_loss_eval)
 		np.save(self.out_dir + '/res/g_loss_eval.npy', self.g_loss_eval)
-
-		self.visualize(X_real, X_fake)
 
 		self.save_loss(name='evaluation')
 

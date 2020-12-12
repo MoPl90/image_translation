@@ -119,7 +119,6 @@ def assemble_generator_param(mp, gen_params, eval=False):
     return params
 
 def run_training(args):
-
     # Load config file.
     p = configparser.ConfigParser()
     p.optionxform = str
@@ -151,7 +150,8 @@ def run_training(args):
                              gen_param['imageType'], 
                              gen_param['labelPath'], 
                              gen_param['labelType'],
-                             mp['lesion_threshold'])
+                             mp['lesion_threshold'],
+                             mp['labels'])
 
     save_path, log_path, model_path = create_data_storage(mp, args.config, partition, args.out)
 
@@ -181,7 +181,7 @@ def run_training(args):
     #set up training an evaluation generators
     trainGenerator = DataGenerator(list_IDs=partition["train"], **gen_param_train, normalization_args=norm_param, augmentation_args=aug_param)
     testGenerator = DataGenerator(list_IDs=partition["validation"],  **gen_param_eval, normalization_args=norm_param, augmentation_args=aug_param)
-    
+
     #Run training     
     while model.steps < mp['epochs'] * len(trainGenerator) * mp["batchsize"]:
         model.train_on_batch(trainGenerator, testGenerator)
