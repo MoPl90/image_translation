@@ -14,7 +14,7 @@ from tensorflow.python.ops import array_ops
 import numpy as np
 
 # generator a resnet block
-def resnet_block(n_filters, input_layer, dim=3, init='he_normal', norm_layer=BatchNormalization, leakiness=leakiness):
+def resnet_block(n_filters, input_layer, dim=3, init='he_normal', norm_layer=BatchNormalization, leakiness=0.02):
 
 	if dim == 3:
 		conv_layer = Conv3D
@@ -40,7 +40,7 @@ def resnet_block(n_filters, input_layer, dim=3, init='he_normal', norm_layer=Bat
 
 
 
-def conv_d(layer_input, filters, kernel_size=4, norm=True, dim=3, init='he_normal', norm_layer=BatchNormalization, leakiness=leakiness):
+def conv_d(layer_input, filters, kernel_size=4, norm=True, dim=3, init='he_normal', norm_layer=BatchNormalization, leakiness=0.02):
 	"""Layers used during downsampling"""
 
 	if dim == 3:
@@ -57,7 +57,7 @@ def conv_d(layer_input, filters, kernel_size=4, norm=True, dim=3, init='he_norma
 	return d
 
 
-def deconv_d(layer_input, skip_input, filters, kernel_size=4, dropout_rate=0, dim=3, init='he_normal', norm_layer=BatchNormalization, leakiness=leakiness):
+def deconv_d(layer_input, skip_input, filters, kernel_size=4, dropout_rate=0, dim=3, init='he_normal', norm_layer=BatchNormalization, leakiness=0.02):
 	"""Layers used during upsampling"""
 
 	if dim == 3:
@@ -101,7 +101,7 @@ def spade_block(latent_in, input_mask, dim=3, init='he_normal'):
 	return out
 
 # generator a resnet block
-def spade_res_block(fil, latent_in, input_mask, dim=3, init='he_normal', rectify=False, leakiness=leakiness):
+def spade_res_block(fil, latent_in, input_mask, dim=3, init='he_normal', rectify=False, leakiness=0.02):
 	"""SPADE residual block; two-fold application of SPADE block and a 3x3 convolution.
 
 	Input:

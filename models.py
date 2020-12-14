@@ -63,7 +63,7 @@ class PIX2PIX():
 		self.steps = 0
 		self.gf = gf
 		self.filters_d = filters_d
-		self.out_activation="tanh",
+		self.out_activation="tanh"
 		self.leakiness=0.02,
 		self.out_dir = out_dir
 
@@ -138,28 +138,30 @@ class PIX2PIX():
 			d.append(d3)
 			d4 = conv_d(d3, self.gf * 8, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer, leakiness=self.leakiness)
 			d.append(d4)
-			if self.image_shape[-2] > 16:
+			if self.image_shape[-2] > 64:
 				d5 = conv_d(d4, self.gf * 8, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer, leakiness=self.leakiness)
 				d.append(d5)
-			if self.image_shape[-2] > 32:
+			if self.image_shape[-2] > 96:
 				d6 = conv_d(d5, self.gf * 8, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer, leakiness=self.leakiness)
 				d.append(d6)
-			if self.image_shape[-2] > 64:
+			if self.image_shape[-2] > 128:
 				d7 = conv_d(d6, self.gf * 8, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer, leakiness=self.leakiness)
 				d.append(d7)
-
+				print('da')
+			
+			print([i.shape for i in  d], self.image_shape[-2])
 			# Upsampling
-			if self.image_shape[-2] > 64:
+			if self.image_shape[-2] > 128:
 				u = deconv_d(d[-1], d[-2], self.gf * 8, dropout_rate=self.dropout, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer, leakiness=self.leakiness)
 			else:
 				u = d[-1]
 				d.append(u)
-			if self.image_shape[-2] > 32:
+			if self.image_shape[-2] > 96:
 				u = deconv_d(u, d[-3], self.gf * 8, dropout_rate=self.dropout, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer, leakiness=self.leakiness)
 			else:
 				u = d[-2]
 				d.append(u)
-			if self.image_shape[-2] > 16:
+			if self.image_shape[-2] > 64:
 				u = deconv_d(u, d[-4], self.gf * 8, dropout_rate=self.dropout, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer, leakiness=self.leakiness)
 			else:
 				u = d[-3]
@@ -170,10 +172,10 @@ class PIX2PIX():
 
 			if len(self.image_shape[:-1]) == 3:
 				u = UpSampling3D(size=2)(u)
-				out_img = Conv3D(self.image_shape[-1], kernel_size=4, strides=1, padding='same', activation='tanh')(u)
+				out_img = Conv3D(self.image_shape[-1], kernel_size=4, strides=1, padding='same', activation=self.out_activation)(u)
 			elif len(self.image_shape[:-1]) == 2:
 				u = UpSampling2D(size=2)(u)
-				out_img = Conv2D(self.image_shape[-1], kernel_size=4, strides=1, padding='same', activation='tanh')(u)
+				out_img = Conv2D(self.image_shape[-1], kernel_size=4, strides=1, padding='same', activation=self.out_activation)(u)
 			else:
 				raise ValueError("Data must be 2D or 3D")
 
@@ -232,10 +234,10 @@ class PIX2PIX():
 		# weight initialization
 		init = RandomNormal(stddev=self.init_weights)
 		#keep the patch size < image size:
-		max_index = int(np.argwhere(self.filters_d == np.array([self.image_shape[-2]]))[0])
+		max_index = int(np.argwhere(self.filters_d == np.array([self.image_shape[1]]))[0])
 		max_index += 1
 		self.filters_d = self.filters_d[:max_index]
-		if self.image_shape[-2] < 256:
+		if self.image_shape[1] < 256:
 			d_filters = self.filters_d
 		else:
 			d_filters = self.filters_d
@@ -359,8 +361,6 @@ class PIX2PIX():
 																				   g_loss[1],
 																				   self.recon_weight,
 																				   g_loss[2]))
-			self.visualize(testGenerator)
-
 
 		#evaluate and validate the performance after each epoch, the save
 		if self.steps % len(trainGenerator) == 0:
@@ -741,10 +741,10 @@ class SPADE():
 		# weight initialization
 		init = RandomNormal(stddev=self.init_weights)
 		#keep the patch size < image size:
-		max_index = int(np.argwhere(self.filters_d == np.array([self.image_shape[-2]]))[0])
+		max_index = int(np.argwhere(self.filters_d == np.array([self.image_shape[1]]))[0])
 		max_index += 1
 		self.filters_d = self.filters_d[:max_index]
-		if self.image_shape[-2] < 256:
+		if self.image_shape[1] < 256:
 			d_filters = self.filters_d
 		else:
 			d_filters = self.filters_d
@@ -870,7 +870,6 @@ class SPADE():
 																				   g_loss[1],
 																				   self.recon_weight,
 																				   g_loss[2]))
-			self.visualize(testGenerator)
 
 		#evaluate and validate the performance after each epoch, the save
 		if self.steps % len(trainGenerator) == 0:

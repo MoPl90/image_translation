@@ -300,11 +300,15 @@ def removeStrokeBelowThreshold(listOfCases, labelsPathFolder, image_type='.dcm',
 
     valid = []
     for case in listOfCases:
-        gts = nib.load(labelsPathFolder + '/' + case + image_type).get_fdata()
-        if threshold >= 0 and np.sum(gts==n_classes-1) > threshold:
-            valid.append(case)
-        elif threshold < 0 and np.sum(gts == n_classes-1) < -threshold:
-            valid.append(case)
+        try:
+            gts = nib.load(labelsPathFolder + '/' + case + image_type).get_fdata()
+            if threshold >= 0 and np.sum(gts==n_classes-1) > threshold:
+                valid.append(case)
+            elif threshold < 0 and np.sum(gts == n_classes-1) < -threshold:
+                valid.append(case)
+        #If not gts file available -> normal database
+        except FileNotFoundError:
+            continue
 
     return valid
 

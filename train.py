@@ -136,9 +136,6 @@ def run_training(args):
     gen_param       = collect_parameters(p, 'GEN')
     norm_param      = collect_parameters(p, 'NORM')
     aug_param       = collect_parameters(p, 'AUG')
-    gan_param       = collect_parameters(p, 'GAN')
-    pix2pix_param   = collect_parameters(p, 'PIX2PIX')
-    spade_param     = collect_parameters(p, 'SPADE')
     
     gen_param_train = assemble_generator_param(mp, gen_param, eval=False)
     gen_param_eval = assemble_generator_param(mp, gen_param, eval=True)
@@ -153,20 +150,25 @@ def run_training(args):
                              mp['lesion_threshold'],
                              mp['labels'])
 
+    print(len(partition["train"]), len(partition["validation"]))
+
     save_path, log_path, model_path = create_data_storage(mp, args.config, partition, args.out)
 
     #initialise the trainable model
     if mp['model'].lower() == 'gan':
+        gan_param       = collect_parameters(p, 'GAN')
         model_param = collect_model_param(mp, gan_param)
         model = GAN(**model_param)
        
 
     elif mp['model'].lower() == 'pix2pix':
+        pix2pix_param   = collect_parameters(p, 'PIX2PIX')
         model_param = collect_model_param(mp, pix2pix_param)
         model = PIX2PIX(**model_param)
         # partition = get_id_lists(mp['trnImgPath'], mp['validprop'], mp['shuffle'], gen_param['imgType'], mp['trnLabelPath'], gen_param['labelType'], gen_param['threshold'])
 
     elif mp['model'].lower() == 'spade':
+        spade_param     = collect_parameters(p, 'SPADE')
         model_param = collect_model_param(mp, spade_param)
         model = SPADE(**model_param)
         # partition = get_id_lists(mp['trnImgPath'], mp['validprop'], mp['shuffle'], gen_param['imgType'], mp['trnLabelPath'], gen_param['labelType'], gen_param['threshold'])
