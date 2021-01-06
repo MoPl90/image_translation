@@ -162,11 +162,7 @@ class DataGenerator(Sequence):
 
             # CTNormalization
             if (self.normalization_args['ctNormalize'] == 1):
-                Y_temp = ctNormalization(Y_temp)
-
-            # #Rearrage arrays in dicom ordering, with slice dim first
-            # X_temp = np.transpose(X_temp,(2,1,0,3))[:, ::-1,...]
-            # Y_temp = np.transpose(Y_temp,(2,1,0,3))[:, ::-1,...]
+                Y_temp = CTNormalization(Y_temp)
 
             #2D data: slice selection
             if len(self.dim) < 3:
@@ -233,20 +229,20 @@ class DataGenerator(Sequence):
 
         img2d_shape = list(files[0].pixel_array.shape)
 
+        if orientation == 0:
+            L = len(files)
+            P = img2d_shape[1] 
+            S = img2d_shape[0] #in fact -
         if orientation == 1:
+            L = img2d_shape[1]
+            P = len(files)
+            S = img2d_shape[0] #in fact -
+            
+        if orientation == 2:
             L = img2d_shape[1]
             P = img2d_shape[0]
             S = len(files)
         
-        if orientation == 2:
-            L = len(files)
-            P = img2d_shape[1] 
-            S = img2d_shape[0] #in fact -
-            
-        if orientation == 3:
-            L = img2d_shape[1]
-            P = len(files)
-            S = img2d_shape[0] #in fact -
 
         img_shape = [L,P,S]
         # print("image shape in LPS: {}".format(img_shape))
@@ -276,7 +272,7 @@ class DataGenerator(Sequence):
 
     def load3DImagesDcm(self, pathToDcmFolder, ID, crop_params):
         pathToDicomFolder = pathToDcmFolder + '/' + ID
-        orientation = get_Orientation(pathToDicomFolder)
+        orientation = get_orientation(pathToDicomFolder)
         image_array = self.load3DImageDCM_LPS(pathToDicomFolder+'/*', orientation)
         return image_array[crop_params[0]: crop_params[1], crop_params[2]: crop_params[3], crop_params[4]: crop_params[5]]
     
@@ -287,13 +283,19 @@ class DataGenerator(Sequence):
 #####################################
 
 def listOfCasesInFolder(pathToFolder, image_type='.dcm'):
-    listOfImages = []
+
+    listOfCases = []
     listOfFiles = os.listdir(pathToFolder)
-    for f in listOfFiles:
-        if f.endswith(image_type) and f[0] != '.':
-            listOfImages.append(f.split('.')[0])
     
-    return list(listOfImages)
+    if('.dcm' in image_type):
+        listOfCases = listOfFiles
+
+    if('.nii.gz' in image_type or '.npy' in image_type):
+        for f in listOfFiles:
+            if f.endswith(image_type) and f[0] != '.':
+                listOfCases.append(f.split('.')[0])
+
+    return list(listOfCases)
 
 
 def removeStrokeBelowThreshold(listOfCases, labelsPathFolder, image_type='.dcm', threshold=20, n_classes=1):
@@ -308,7 +310,7 @@ def removeStrokeBelowThreshold(listOfCases, labelsPathFolder, image_type='.dcm',
                 valid.append(case)
         #If not gts file available -> normal database
         except FileNotFoundError:
-            continue
+            valid.append(case)
 
     return valid
 
@@ -359,7 +361,7 @@ def simpleNormalization(array):
 
     return vol
 
-def ctNormalization(array):
+def CTNormalization(array):
     
     vol = np.clip(array, 0.001, 100)
 
@@ -393,116 +395,5 @@ def get_orientation(dcm_path):
 
     assert len(np.unique(orientations)) == 1, "ERROR: Not all slices have same orientation!"
 
-    return np.unique(orientations)[0], np.asarray([np.sign(dicom_orientation[i][dicom_orientation_argmax[i]]) for i in range(2)], dtype=int)
+    return np.unique(orientations)[0]#, np.asarray([np.sign(dicom_orientation[i][dicom_orientation_argmax[i]]) for i in range(2)], dtype=int)
 
-
-#####################################
-# Testing routine
-#####################################
-
-if __name__ == "__main__":
-    import matplotlib.pylab as plt
-    import time
-    import seaborn as sns
-
-    IDsList = get_id_lists("/scratch/mplatscher/data/DWI_data/nii_data_skull_stripped/", 0.15, 0, '.nii.gz')
-    
-    augmentation_args = {'maxNumberOfTransformation':3,
-                         'flip': 1,
-                         'rotationRangeXAxis': 5,
-                         'rotationRangeYAxis': 5,
-                         'rotationRangeZAxis': 5,
-                         'zoomRange': 0.05,
-                         'shiftXAxisRange': 0.02,
-                         'shiftYAxisRange': 0.02,
-                         'shiftZAxisRange': 0.02,
-                         'stretchFactorXAxisRange': 0.05,
-                         'stretchFactorYAxisRange': 0.05,
-                         'stretchFactorZAxisRange': 0.05,
-                         'shear_NormalXAxisRange': 0.03,
-                         'shear_NormalYAxisRange': 0.03,
-                         'shear_NormalZAxisRange': 0.03}
-
-    normalization_args = {'simpleNormalize':1,
-                          'addNoise':0,
-                          'intensityNormalize':0,
-                          'ctNormalize':0,
-                          'gaussian_filter':0}
-
-    trainGenerator = DataGenerator(list_IDs=IDsList["train"], 
-                                  imagePathFolder="/scratch/mplatscher/data/DWI_data/nii_data_skull_stripped/", 
-                                  labelPathFolder="/scratch/mplatscher/data/DWI_data/training_data_processed_segmentation_28classes/", 
-                                  normalization_args=normalization_args, 
-                                  augment=1, 
-                                  augmentation_args=augmentation_args, 
-                                  preload_data = False, 
-                                  imageType = '.nii.gz', 
-                                  labelType = '_aseg.nii.gz', 
-                                  batch_size=16, 
-                                  dim=(128,128), 
-                                  crop_parameters=[0,128,0,128,4,36], 
-                                  n_channels=1, 
-                                  n_classes=28,
-                                  shuffle=True)
-
-    testGenerator = DataGenerator(list_IDs=IDsList["validation"], 
-                                  imagePathFolder="/scratch/mplatscher/data/DWI_data/nii_data_skull_stripped/", 
-                                  labelPathFolder="/scratch/mplatscher/data/DWI_data/training_data_processed_segmentation_28classes/", 
-                                  normalization_args=normalization_args, 
-                                  augment=1, 
-                                  augmentation_args=augmentation_args, 
-                                  preload_data = False, 
-                                  imageType = '.nii.gz', 
-                                  labelType = '_aseg.nii.gz', 
-                                  batch_size=1, 
-                                  dim=(128,128), 
-                                  crop_parameters=[0,128,0,128,4,36], 
-                                  n_channels=1, 
-                                  n_classes=28,
-                                  shuffle=True)
-
-
-    n_classes = 28
-    cols = sns.color_palette("pastel", n_classes - 1)
-    # background is transparent
-    cols.insert(0, 'none')
-    # Add stroke class
-    cols.append('r')
-
-
-    fig, ax = plt.subplots(4, 4, figsize=(16, 16))
-    ax = ax.flatten()
-
-    tic = time.perf_counter()
-    imA, imB = next(testGenerator)
-    toc = time.perf_counter()
-    print(f"Data generation took {toc - tic:0.4f} seconds")
-
-    if len(testGenerator.dim) > 2:
-        imA = imA[0]
-        imB = imB[0]
-        init = 3
-    else:
-        init = 0
-        
-    i = init
-    for a in ax:
-        a.imshow(imB[i,:,:,0], cmap='bone', vmin=-1, vmax=1)
-        a.contourf(np.argmax(imA[i,:,:], axis=-1), levels = np.arange(testGenerator.n_classes+1)-0.5, colors=cols, alpha=0.3)
-        a.set_xticks([],[])
-        a.set_yticks([],[])
-        i+=1
-    plt.savefig('testA.png')
-
-    fig, ax = plt.subplots(4, 4, figsize=(16, 16))
-
-    ax = ax.flatten()
-    i = init
-    for a in ax:
-        a.imshow(imB[i,:,:,0], cmap='bone', vmin=-1, vmax=1)
-
-        a.contour(np.argmax(imA[i,:,:,:], axis=-1), levels = np.arange(testGenerator.n_classes+1)-0.5, colors=cols, linewidths=0.5, alpha=0.75)
-        a.set_xticks([],[])
-        a.set_yticks([],[])
-        i+=1
-    plt.savefig('testB.png')

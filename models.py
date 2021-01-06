@@ -574,14 +574,10 @@ class PIX2PIX():
         Input:
             int; identifier for the desired model.
         """
-		if num < 0:
-			num =""
-		else:
-			num = str(num)
 		opt = Adam(lr=self.lr, beta_1=0.5)
 
-		self.g_model.load_weights(location + "/Models/gen_" + num + '.h5')
-		self.d_model.load_weights(location + "/Models/dis_" + num + '.h5')
+		self.g_model.load_weights(location + "/Models/gen_" + str(num) + '.h5')
+		self.d_model.load_weights(location + "/Models/dis_" + str(num) + '.h5')
 
 		self.composite_model = self.define_composite_model(self.g_model, self.d_model, opt)
 
@@ -592,6 +588,8 @@ class PIX2PIX():
 		self.g_loss = list(np.load(location + '/res/g_loss.npy')[:self.steps])
 		self.g_loss_eval = list(np.load(location + '/res/g_loss_eval.npy')[:(int(num)+1)])
 
+		os.system("rm -r " + self.out_dir)
+		self.out_dir = location
 
 class SPADE():
 
@@ -707,13 +705,14 @@ class SPADE():
 			upsampling_layer = UpSampling3D
 			conv_layer = Conv3D
 
-		res = mask_in.shape[1]
+		res = mask_in.shape[1]	
 		masks = {str(res):mask_in}
 		while res > 4:
 			key = str(res // 2)
 			masks[key] = pooling_layer()(masks[str(res)])
 			res = res // 2
 
+		print(masks.keys())
 		fil = self.gf
 		while g.shape[1] < self.image_shape[1]:
 
@@ -859,7 +858,7 @@ class SPADE():
 		self.steps +=1
 
 		# summarize performance every 50 batches
-		if self.steps % 50 == 0:
+		if self.steps % 1 == 0:
 			print("[Epoch %d] [Batch %d] [D loss: %f, acc: %3d%%] [G loss: %1.3f = %1.1f * %1.3f + %1.1f * %1.3f]" % (
 																				   len(self.epochs),
 																				   self.steps,
@@ -1086,14 +1085,11 @@ class SPADE():
         Input:
             int; identifier for the desired model.
         """
-		if num < 0:
-			num = ""
-		else:
-			num = str(num)
 		opt = Adam(lr=self.lr, beta_1=0.5)
 
-		self.g_model.load_weights(location + "/Models/gen_" + num + '.h5')
-		self.d_model.load_weights(location + "/Models/dis_" + num + '.h5')
+
+		self.g_model.load_weights(location + "/Models/gen_" + str(num) + '.h5')
+		self.d_model.load_weights(location + "/Models/dis_" + str(num) + '.h5')
 
 		self.composite_model = self.define_composite_model(self.g_model, self.d_model, opt)
 
@@ -1104,7 +1100,8 @@ class SPADE():
 		self.g_loss = list(np.load(location + '/res/g_loss.npy')[:self.steps])
 		self.g_loss_eval = list(np.load(location + '/res/g_loss_eval.npy')[:(int(num)+1)])
 
-
+		os.system("rm -r " + self.out_dir)
+		self.out_dir = location
 
 
 class GAN():
@@ -1572,13 +1569,9 @@ class GAN():
 		Input:
 			int; identifier for the desired model.
 		"""
-		if num < 0:
-			num = ""
-		else:
-			num = str(num)
 
-		self.g_model.load_weights(location + "/Models/gen_" + num + '.h5')
-		self.d_model.load_weights(location + "/Models/dis_" + num + '.h5')
+		self.g_model.load_weights(location + "/Models/gen_" + str(num) + '.h5')
+		self.d_model.load_weights(location + "/Models/dis_" + str(num) + '.h5')
 
 		self.adversarial_model = self.define_composite_model(self.g_model, self.d_model)
 
@@ -1588,6 +1581,10 @@ class GAN():
 		self.d_loss_eval = list(np.load(location + '/res/d_loss_eval.npy')[:self.steps])
 		self.g_loss = list(np.load(location + '/res/g_loss.npy')[:self.steps])
 		self.g_loss_eval = list(np.load(location + '/res/g_loss_eval.npy')[:self.steps])
+
+
+		os.system("rm -r " + self.out_dir)
+		self.out_dir = location
 
 
 if __name__ == "__main__":

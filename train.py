@@ -1,5 +1,6 @@
 from models import *
-from data_generator import*
+from data_generator import DataGenerator, get_id_lists
+from data_generator_multithread import DataGeneratorMultiThread
 import argparse
 import configparser
 import json
@@ -140,7 +141,6 @@ def run_training(args):
     gen_param_train = assemble_generator_param(mp, gen_param, eval=False)
     gen_param_eval = assemble_generator_param(mp, gen_param, eval=True)
 
-    # Generate data storage folders.    
     partition = get_id_lists(gen_param['imagePath'], 
                              mp['validprop'], 
                              mp['shuffle'], 
@@ -152,6 +152,7 @@ def run_training(args):
 
     print(len(partition["train"]), len(partition["validation"]))
 
+    # Generate data storage folders.    
     save_path, log_path, model_path = create_data_storage(mp, args.config, partition, args.out)
 
     #initialise the trainable model
@@ -175,14 +176,18 @@ def run_training(args):
     
 
     #load pre-trained model
-    if args.load > 0:
-        model.load(args.load)
+    if args.load > 0 and args.model_path != "":
+        model.load(args.model, args.load)
         print('Loaded model # %1d' % (args.load))
 
 
     #set up training an evaluation generators
-    trainGenerator = DataGenerator(list_IDs=partition["train"], **gen_param_train, normalization_args=norm_param, augmentation_args=aug_param)
-    testGenerator = DataGenerator(list_IDs=partition["validation"],  **gen_param_eval, normalization_args=norm_param, augmentation_args=aug_param)
+    if args.multithread:
+        trainGenerator = DataGeneratorMultiThread(mp["epochs"], list_IDs=partition["train"], **gen_param_train, normalization_args=norm_param, augmentation_args=aug_param)
+        testGenerator = DataGeneratorMultiThread(mp["epochs"], list_IDs=partition["validation"],  **gen_param_eval, normalization_args=norm_param, augmentation_args=aug_param)
+    else:
+        trainGenerator = DataGenerator(list_IDs=partition["train"], **gen_param_train, normalization_args=norm_param, augmentation_args=aug_param)
+        testGenerator = DataGenerator(list_IDs=partition["validation"],  **gen_param_eval, normalization_args=norm_param, augmentation_args=aug_param)
 
     #Run training     
     while model.steps < mp['epochs'] * len(trainGenerator) * mp["batchsize"]:
@@ -190,7 +195,9 @@ def run_training(args):
 
     model.save(mp['epochs'])
 
-
+    if args.multithread:
+        trainGenerator.terminate()
+        testGenerator.terminate()
 
 
 
@@ -199,6 +206,8 @@ def run_training(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-l", "--load", help="Load exiting model with given numerical identifier.", default=-1, type=int)
+    parser.add_argument("-p", "--model_path", help="Path to exiting model dir to load.", default="", type=str)
+    parser.add_argument("-m", "--multithread", help="Toggle multi-thredding data generator", default=False, type=bool)
     parser.add_argument("-g", "--gpu", help="Select which gpu to use (0,1,2,3).", default='0', type=str)
     parser.add_argument("-c", "--config", help="Path to config file.", default='settings.cfg', type=str)
     parser.add_argument("-o", "--out", help="Output path for model etc..", default='', type=str)
