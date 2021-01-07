@@ -170,7 +170,7 @@ class DataGenerator(Sequence):
                 X_temp = X_temp[...,randint[i],:]
                 Y_temp = Y_temp[...,randint[i],:]
 
-            #assign final data
+           #assign final data
             X[i,] = to_categorical(X_temp[...,0], num_classes=self.n_classes, dtype=self.variableTypeY)
             Y[i,] = Y_temp
 
@@ -298,13 +298,13 @@ def listOfCasesInFolder(pathToFolder, image_type='.dcm'):
     return list(listOfCases)
 
 
-def removeStrokeBelowThreshold(listOfCases, labelsPathFolder, image_type='.dcm', threshold=20, n_classes=1):
-
+def removeStrokeBelowThreshold(listOfCases, labelsPathFolder, image_type='.dcm', threshold=0, n_classes=1):
+    
     valid = []
     for case in listOfCases:
         try:
             gts = nib.load(labelsPathFolder + '/' + case + image_type).get_fdata()
-            if threshold >= 0 and np.sum(gts==n_classes-1) > threshold:
+            if threshold >= 0 and ( np.sum(gts==n_classes-1) >= threshold or np.sum(gts==255) >= threshold):
                 valid.append(case)
             elif threshold < 0 and np.sum(gts == n_classes-1) < -threshold:
                 valid.append(case)
@@ -318,7 +318,6 @@ def get_id_lists(imagePathFolder, _validProportion, shuffle_train_val, image_typ
     # generate List of train and valid IDs from the DicomFolderPaths randomly
 
     _listOfCases = listOfCasesInFolder(imagePathFolder, image_type)
-
 
     if labelPathFolder is not None:
         _listOfCases = removeStrokeBelowThreshold(_listOfCases, labelPathFolder, image_type=label_type, threshold=threshold, n_classes=n_classes)

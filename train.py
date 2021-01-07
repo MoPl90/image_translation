@@ -166,14 +166,11 @@ def run_training(args):
         pix2pix_param   = collect_parameters(p, 'PIX2PIX')
         model_param = collect_model_param(mp, pix2pix_param)
         model = PIX2PIX(**model_param)
-        # partition = get_id_lists(mp['trnImgPath'], mp['validprop'], mp['shuffle'], gen_param['imgType'], mp['trnLabelPath'], gen_param['labelType'], gen_param['threshold'])
 
     elif mp['model'].lower() == 'spade':
         spade_param     = collect_parameters(p, 'SPADE')
         model_param = collect_model_param(mp, spade_param)
         model = SPADE(**model_param)
-        # partition = get_id_lists(mp['trnImgPath'], mp['validprop'], mp['shuffle'], gen_param['imgType'], mp['trnLabelPath'], gen_param['labelType'], gen_param['threshold'])
-    
 
     #load pre-trained model
     if args.load > 0 and args.model_path != "":
@@ -188,6 +185,7 @@ def run_training(args):
     else:
         trainGenerator = DataGenerator(list_IDs=partition["train"], **gen_param_train, normalization_args=norm_param, augmentation_args=aug_param)
         testGenerator = DataGenerator(list_IDs=partition["validation"],  **gen_param_eval, normalization_args=norm_param, augmentation_args=aug_param)
+
 
     #Run training     
     while model.steps < mp['epochs'] * len(trainGenerator) * mp["batchsize"]:

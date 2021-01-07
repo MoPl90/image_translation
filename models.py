@@ -147,9 +147,7 @@ class PIX2PIX():
 			if self.image_shape[-2] > 128:
 				d7 = conv_d(d6, self.gf * 8, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer, leakiness=self.leakiness)
 				d.append(d7)
-				print('da')
 			
-			print([i.shape for i in  d], self.image_shape[-2])
 			# Upsampling
 			if self.image_shape[-2] > 128:
 				u = deconv_d(d[-1], d[-2], self.gf * 8, dropout_rate=self.dropout, dim=len(self.image_shape[:-1]), init=init, norm_layer=self.norm_layer, leakiness=self.leakiness)
