@@ -15,7 +15,7 @@ The models can be customized with different architectures (ResNet or UNet) and p
 ## Usage
 To use this code, you have to set up a python enviornment:
 ```
-$ conda create -n yourenv python==3.7
+$ conda create -n yourenv python=3.7
 $ conda activate yourenv
 $ pip install -r requirements.txt
 ```
